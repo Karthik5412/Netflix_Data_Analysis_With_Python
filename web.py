@@ -2,6 +2,7 @@ import streamlit as st
 import plotly.express as px
 import pandas as pd
 import joblib
+import numpy as np
 
 unique_actors = joblib.load('unique_actors.plk') 
 gener_df = joblib.load('gener_df.plk')
@@ -17,8 +18,10 @@ st.title('LETTERBOXD MOVIES ANALYSIS FROM 2K10 TO 2k25')
 st.set_page_config(page_title='Movie Data Analysis',layout='wide',initial_sidebar_state='collapsed')
 
 letterboxd_palette = [
-    '#FF8000', '#00E054', '#40BCF4', '#EE3424', '#99AABB', 
-    '#202830', '#00B020', '#BB6600', '#CCDDEE', '#445566'
+    "#FF8000", "#00E054", "#40BCF4", "#9129FF", "#FF4500", 
+    "#00B0F0", "#2ECC71", "#E74C3C", "#F1C40F", "#9B59B6",
+    "#1ABC9C", "#E67E22", "#3498DB", "#FF005A", "#00FA9A",
+    "#8E44AD", "#C0392B", "#16A085", "#D35400", "#2980B9"
 ]
 
 countries = st.sidebar.multiselect(
@@ -160,28 +163,56 @@ with tab3:
     col1,col2 = st.columns(2)
     
     with col1 :
-        new_df = gener_df.groupby('genres')['rating'].mean().reset_index()
-        fig = px.treemap(new_df,names='genres',values='rating',color='rating',)
-        
-        st.write(new_df)
-        st.plotly_chart(fig)
+        new_df = gener_df.groupby('genres')[['rating','popularity']].mean().reset_index()
+        fig = px.scatter(new_df,x='rating',y='popularity',
+                        hover_name='genres',
+                        size = 'popularity',color='genres',
+                        marginal_x="box",marginal_y='box',
+                        color_discrete_sequence=letterboxd_palette)
+
+        st.plotly_chart(fig,use_container_width=True,width='constent',height='stretch')
         
     with col2:
+        new_df = date_df.groupby('date_added')['rating'].mean().reset_index()
         
-        fig = px.histogram(df,x='date_added',y='rating',marginal='violin')
         
-        st.plotly_chart(fig)
+        fig = px.histogram(new_df,x='date_added',y='rating',histfunc='avg',
+                     marginal='violin',nbins=50,
+                     color_discrete_sequence=letterboxd_palette)
         
-    col3,col4 = st.columns([0.5,0.5])
+        st.plotly_chart(fig,use_container_width=True,width='constent',height='stretch')
+        
+    new_df = gener_df.groupby('genres').agg({
+        'rating' : 'mean',
+        'revenue' : 'sum'
+    }).reset_index()
     
-    with col3:
-        fig1 = px.bar(df.nlargest(50,'rating') ,x='title',y='rating',color_discrete_sequence=letterboxd_palette[3:])
-        st.plotly_chart(fig1)
+    fig = px.treemap(
+    new_df,
+    path=[px.Constant("All Genres"), 'genres'],
+    values='revenue', color='rating',
+    color_continuous_scale=letterboxd_palette)
+    
+    st.plotly_chart(fig,use_container_width=True,width='constent',height='stretch')
         
-    with col4:
-        fig2 = px.bar(df.nlargest(50,'revenue'),x='title',y='revenue',color_discrete_sequence=letterboxd_palette[2:])
-        st.plotly_chart(fig2)
+    
+    new_df = gener_df.groupby(['genres','date_added'])['rating'].mean().reset_index()
+    new_df['date_added'] = pd.to_datetime(new_df['date_added']).dt.strftime('%Y-%Q%q')
+    new_df = new_df.sort_values(by='date_added',ascending=True)
+    
+    fig = px.line(new_df,x='date_added',y='rating',color='genres',color_discrete_sequence=letterboxd_palette)
+
+    st.plotly_chart(fig,use_container_width=True,width='constent',height='stretch')
+    
+    
+    new_df = country_df.groupby('country')['rating'].mean().reset_index()
+    fig = px.bar(new_df.nlargest(100,'rating') ,x='country',y='rating',
+                    barmode='stack',
+                    color_discrete_sequence=letterboxd_palette[3:])
+    st.plotly_chart(fig,use_container_width=True,width='constent',height='stretch')
+    
         
+    
 
     
             
